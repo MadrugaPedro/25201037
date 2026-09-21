@@ -1,0 +1,199 @@
+
+-- Aluno: Pedro Emanuel da Costa Madruga
+-- Curso: Engenharia de Software
+-- Disciplina: Banco de Dados 
+-- Contexto: Sistema de Gestão Aeroportuária
+-- SGBD: MySQL
+--
+-- DESCRIÇÃO SINTÉTICA DO MODELO DE DADOS:
+-- 1. AERONAVE: Cadastro das aeronaves operadas (modelo, capacidade máxima).
+-- 2. VOO: Registro dos voos com rota, horários estimados, status e assentos livres.
+-- 3. PASSAGEM: Bilhetes emitidos e vinculados aos voos para passageiros.
+-- 4. LOG_ALTERACAO_VOO: Tabela de auditoria para rastreamento de mudanças de status.
+-- ==============================================================================
+
+-- Desativa temporariamente checagens para recriação limpa (se necessário)
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS LOG_ALTERACAO_VOO;
+DROP TABLE IF EXISTS PASSAGEM;
+DROP TABLE IF EXISTS VOO;
+DROP TABLE IF EXISTS AERONAVE;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ------------------------------------------------------------------------------
+-- DDL DAS TABELAS DO DOMÍNIO OPERACIONAL
+-- ------------------------------------------------------------------------------
+CREATE TABLE AERONAVE (
+    id_aeronave INT AUTO_INCREMENT PRIMARY KEY,
+    codigo_registro VARCHAR(20) NOT NULL UNIQUE,
+    modelo VARCHAR(50) NOT NULL,
+    capacidade_total INT NOT NULL CHECK (capacidade_total > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE VOO (
+    id_voo INT AUTO_INCREMENT PRIMARY KEY,
+    codigo_voo VARCHAR(10) NOT NULL,
+    id_aeronave INT NOT NULL,
+    data_hora_partida DATETIME NOT NULL,
+    data_hora_chegada DATETIME NOT NULL,
+    status_voo ENUM('PROGRAMADO', 'CONFIRMADO', 'EMBARQUE', 'EM_VOO', 'CONCLUIDO', 'CANCELADO') DEFAULT 'PROGRAMADO',
+    assentos_disponiveis INT NOT NULL,
+    CONSTRAINT fk_voo_aeronave FOREIGN KEY (id_aeronave) REFERENCES AERONAVE(id_aeronave)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE PASSAGEM (
+    id_passagem INT AUTO_INCREMENT PRIMARY KEY,
+    id_voo INT NOT NULL,
+    nome_passageiro VARCHAR(120) NOT NULL,
+    documento_passageiro VARCHAR(20) NOT NULL,
+    data_emissao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_passagem_voo FOREIGN KEY (id_voo) REFERENCES VOO(id_voo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==============================================================================
+-- 2. DDL DA TABELA DE AUDITORIA (Desafio 2)
+-- ==============================================================================
+CREATE TABLE LOG_ALTERACAO_VOO (
+    id_log INT AUTO_INCREMENT PRIMARY KEY,
+    id_voo INT NOT NULL,
+    status_anterior VARCHAR(30),
+    status_novo VARCHAR(30),
+    data_hora_alteracao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario_db VARCHAR(100) NOT NULL,
+    CONSTRAINT fk_log_voo FOREIGN KEY (id_voo) REFERENCES VOO(id_voo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==============================================================================
+-- 3. CÓDIGO-FONTE DOS TRIGGERS
+-- ==============================================================================
+
+DELIMITER //
+
+-- ------------------------------------------------------------------------------
+-- DESAFIO 1: Validação de Regra de Negócio Operacional (BEFORE INSERT e BEFORE UPDATE)
+-- Regra: Coerência Temporal. A data/hora estimada de partida deve ser estritamente
+-- anterior à data/hora estimada de chegada.
+-- ------------------------------------------------------------------------------
+CREATE TRIGGER trg_valida_coerencia_temporal_voo_insert
+BEFORE INSERT ON VOO
+FOR EACH ROW
+BEGIN
+    IF NEW.data_hora_partida >= NEW.data_hora_chegada THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Restrição Operacional: A data/hora de partida deve ser estritamente anterior à de chegada.';
+    END IF;
+END //
+
+CREATE TRIGGER trg_valida_coerencia_temporal_voo_update
+BEFORE UPDATE ON VOO
+FOR EACH ROW
+BEGIN
+    IF NEW.data_hora_partida >= NEW.data_hora_chegada THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Restrição Operacional: A data/hora de partida deve ser estritamente anterior à de chegada.';
+    END IF;
+END //
+
+-- ------------------------------------------------------------------------------
+-- DESAFIO 2: Auditoria e Rastreabilidade de Modificações (AFTER UPDATE)
+-- Regra: Monitorar transição de status do voo. Registra o id do voo, estado antigo,
+-- novo estado, carimbo de tempo e o usuário conectado no SGBD.
+-- ------------------------------------------------------------------------------
+CREATE TRIGGER trg_audita_status_voo
+AFTER UPDATE ON VOO
+FOR EACH ROW
+BEGIN
+    IF OLD.status_voo <> NEW.status_voo THEN
+        INSERT INTO LOG_ALTERACAO_VOO (
+            id_voo,
+            status_anterior,
+            status_novo,
+            usuario_db
+        ) VALUES (
+            NEW.id_voo,
+            OLD.status_voo,
+            NEW.status_voo,
+            CURRENT_USER()
+        );
+    END IF;
+END //
+
+-- ------------------------------------------------------------------------------
+-- DESAFIO 3: Sincronização Automática de Dados em Cascata (AFTER INSERT e AFTER DELETE)
+-- Regra: Controle de assentos. Ao emitir passagem (INSERT), decrementa 1 assento.
+-- Se uma passagem for cancelada/removida (DELETE), incrementa o saldo de assentos.
+-- ------------------------------------------------------------------------------
+CREATE TRIGGER trg_sincroniza_assentos_insert
+AFTER INSERT ON PASSAGEM
+FOR EACH ROW
+BEGIN
+    UPDATE VOO
+    SET assentos_disponiveis = assentos_disponiveis - 1
+    WHERE id_voo = NEW.id_voo;
+END //
+
+CREATE TRIGGER trg_sincroniza_assentos_delete
+AFTER DELETE ON PASSAGEM
+FOR EACH ROW
+BEGIN
+    UPDATE VOO
+    SET assentos_disponiveis = assentos_disponiveis + 1
+    WHERE id_voo = OLD.id_voo;
+END //
+
+DELIMITER ;
+
+-- ==============================================================================
+-- 4. BATERIA DE TESTES E VALIDAÇÃO PRÁTICA
+-- ==============================================================================
+
+-- Carga inicial para testes:
+INSERT INTO AERONAVE (codigo_registro, modelo, capacidade_total) 
+VALUES ('PT-BR1', 'Airbus A320', 180);
+
+-- ------------------------------------------------------------------------------
+-- 4.1. TESTES DO DESAFIO 1 
+-- ------------------------------------------------------------------------------
+
+-- CENÁRIO INVÁLIDO: Partida posterior à chegada (Deve falhar com erro 45000)
+-- INSERT INTO VOO (codigo_voo, id_aeronave, data_hora_partida, data_hora_chegada, status_voo, assentos_disponiveis)
+-- VALUES ('LA3001', 1, '2026-10-15 18:00:00', '2026-10-15 16:00:00', 'PROGRAMADO', 180);
+
+-- CENÁRIO VÁLIDO: Partida antes da chegada (Executa com sucesso)
+INSERT INTO VOO (codigo_voo, id_aeronave, data_hora_partida, data_hora_chegada, status_voo, assentos_disponiveis)
+VALUES ('LA3001', 1, '2026-10-15 14:00:00', '2026-10-15 16:30:00', 'PROGRAMADO', 180);
+
+-- ------------------------------------------------------------------------------
+-- 4.2. TESTES DO DESAFIO 2 
+-- ------------------------------------------------------------------------------
+
+-- Estado antes da alteração:
+SELECT id_voo, codigo_voo, status_voo FROM VOO WHERE codigo_voo = 'LA3001';
+
+-- Disparo do evento AFTER UPDATE
+UPDATE VOO 
+SET status_voo = 'EMBARQUE' 
+WHERE codigo_voo = 'LA3001';
+
+-- Verificação da tabela de auditoria (deve exibir 1 linha com status antigo e novo):
+SELECT * FROM LOG_ALTERACAO_VOO;
+
+-- ------------------------------------------------------------------------------
+-- 4.3. TESTES DO DESAFIO 3 
+-- ------------------------------------------------------------------------------
+
+-- 1. Consulta o saldo inicial de assentos disponíveis (esperado: 180)
+SELECT id_voo, codigo_voo, assentos_disponiveis FROM VOO WHERE codigo_voo = 'LA3001';
+
+-- 2. Emissão de bilhete (disparo do AFTER INSERT)
+INSERT INTO PASSAGEM (id_voo, nome_passageiro, documento_passageiro)
+VALUES (1, 'Carlos Eduardo Santos', 'MG-12.345.678');
+
+-- 3. Verificação pós-venda (esperado: 179 assentos disponíveis)
+SELECT id_voo, codigo_voo, assentos_disponiveis FROM VOO WHERE codigo_voo = 'LA3001';
+
+-- 4. Cancelamento de bilhete (disparo do AFTER DELETE)
+DELETE FROM PASSAGEM WHERE nome_passageiro = 'Carlos Eduardo Santos';
+
+-- 5. Verificação pós-cancelamento (esperado: retorno para 180 assentos disponíveis)
+SELECT id_voo, codigo_voo, assentos_disponiveis FROM VOO WHERE codigo_voo = 'LA3001';
