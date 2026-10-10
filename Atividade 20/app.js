@@ -1,8 +1,4 @@
 /**
- * =====================================================================
- * Roteiro de Atividades — Alunos, Notas e Status
- * Arquivo: js/app.js
- * =====================================================================
  * Este script gerencia:
  * 1. Consumo dos dados via Fetch API
  * 2. Alternância entre as duas abordagens didáticas:
@@ -14,15 +10,15 @@
  * 6. Fallback gracioso com dados de demonstração offline
  */
 
-// Estado da Aplicação
+
 const appState = {
-    abordagem: 2, // 1 = Regra no JS, 2 = Regra no PHP (Padrão/Final)
+    abordagem: 2, 
     alunos: [],
     carregando: false,
     modoOffline: false
 };
 
-// Dados de demonstração (fallback caso o Apache/MySQL não esteja rodando)
+
 const DADOS_DEMO = [
     { id: 1, nome: 'Ana Souza', nota: 8.50 },
     { id: 2, nome: 'Bruno Lima', nota: 6.00 },
@@ -32,7 +28,7 @@ const DADOS_DEMO = [
     { id: 6, nome: 'Felipe Albuquerque', nota: 6.80 }
 ];
 
-// Elementos do DOM
+
 const dom = {
     tabelaCorpo: document.getElementById('tabela-alunos-corpo'),
     loadingState: document.getElementById('loading-state'),
@@ -54,26 +50,24 @@ const dom = {
     accordionWrapper: document.getElementById('accordion-theory')
 };
 
-// =====================================================================
-// INICIALIZAÇÃO
-// =====================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
     configurarEventos();
     carregarAlunos();
 });
 
 function configurarEventos() {
-    // Alternar Abordagens
+    
     dom.btnTabJs.addEventListener('click', () => trocarAbordagem(1));
     dom.btnTabPhp.addEventListener('click', () => trocarAbordagem(2));
 
-    // Recarregar
+   
     dom.btnRefresh.addEventListener('click', () => carregarAlunos());
 
-    // Formulário de Cadastro
+    
     dom.formAluno.addEventListener('submit', cadastrarAluno);
 
-    // Accordion Teórico
+   
     if (dom.accordionToggle && dom.accordionWrapper) {
         dom.accordionToggle.addEventListener('click', () => {
             dom.accordionWrapper.classList.toggle('open');
@@ -85,9 +79,7 @@ function configurarEventos() {
     }
 }
 
-// =====================================================================
-// MUDANÇA DE ABORDAGEM (JS vs PHP)
-// =====================================================================
+
 function trocarAbordagem(novaAbordagem) {
     if (appState.abordagem === novaAbordagem) return;
 
@@ -134,16 +126,12 @@ function atualizarDiagramaFluxo(abordagem) {
     }
 }
 
-// =====================================================================
-// CONSUMO DA API VIA FETCH()
-// =====================================================================
+
 function carregarAlunos() {
     setLoading(true);
     ocultarErro();
 
-    // Determina o endpoint de acordo com a abordagem selecionada
-    // Abordagem 1: consome 'api/alunos_v1.php' (ou 'api/alunos.php?versao=1')
-    // Abordagem 2: consome 'api/alunos.php' (endpoint final)
+    
     const endpoint = (appState.abordagem === 1) 
         ? 'api/alunos_v1.php' 
         : 'api/alunos.php';
@@ -169,16 +157,12 @@ function carregarAlunos() {
         });
 }
 
-// =====================================================================
-// PROCESSAMENTO DOS DADOS (APLICAÇÃO DAS REGRAS)
-// =====================================================================
+
 function processarERenderizarAlunos(dados) {
     let alunosProcessados = [];
 
     if (appState.abordagem === 1) {
-        // -------------------------------------------------------------
-        // ABORDAGEM 1: A REGRA DE NEGÓCIO É EXECUTADA NO JAVASCRIPT
-        // -------------------------------------------------------------
+       
         alunosProcessados = dados.map(aluno => {
             const nota = parseFloat(aluno.nota);
             // Requisito 6 do Roteiro:
@@ -193,10 +177,7 @@ function processarERenderizarAlunos(dados) {
             };
         });
     } else {
-        // -------------------------------------------------------------
-        // ABORDAGEM 2: A REGRA JÁ FOI EXECUTADA NO PHP (BACKEND)
-        // O JavaScript apenas lê o atributo 'status' que veio do JSON
-        // -------------------------------------------------------------
+       
         alunosProcessados = dados.map(aluno => {
             return {
                 id: aluno.id,
@@ -213,9 +194,7 @@ function processarERenderizarAlunos(dados) {
     atualizarEstatisticas(alunosProcessados);
 }
 
-// =====================================================================
-// RENDERIZAÇÃO DINÂMICA DA TABELA
-// =====================================================================
+
 function renderizarTabela(alunos) {
     dom.tabelaCorpo.innerHTML = '';
 
@@ -228,13 +207,13 @@ function renderizarTabela(alunos) {
     alunos.forEach(aluno => {
         const tr = document.createElement('tr');
 
-        // Inicial do nome para o avatar estilizado
+        
         const inicial = aluno.nome ? aluno.nome.charAt(0).toUpperCase() : '?';
 
-        // Formatação brasileira da nota (vírgula no lugar de ponto)
+       
         const notaFormatada = aluno.nota.toFixed(2).replace('.', ',');
 
-        // Classe de badge de acordo com o status
+       
         const isAprovado = aluno.status === 'Aprovado';
         const badgeClasse = isAprovado ? 'aprovado' : 'reprovado';
         const iconeStatus = isAprovado ? '✓' : '✗';
@@ -264,9 +243,7 @@ function renderizarTabela(alunos) {
     });
 }
 
-// =====================================================================
-// ESTATÍSTICAS DA TURMA
-// =====================================================================
+
 function atualizarEstatisticas(alunos) {
     const total = alunos.length;
 
@@ -289,9 +266,7 @@ function atualizarEstatisticas(alunos) {
     dom.totalReprovados.textContent = `${reprovados} (${Math.round((reprovados/total)*100)}%)`;
 }
 
-// =====================================================================
-// CADASTRO DE NOVO ALUNO (REQUISIÇÃO POST VIA FETCH)
-// =====================================================================
+
 function cadastrarAluno(e) {
     e.preventDefault();
 
@@ -314,7 +289,7 @@ function cadastrarAluno(e) {
     dom.btnCadastrar.disabled = true;
     dom.btnCadastrar.textContent = 'Salvando...';
 
-    // Se estiver em modo offline demonstrativo
+    
     if (appState.modoOffline) {
         setTimeout(() => {
             const novoAlunoDemo = {
@@ -330,7 +305,7 @@ function cadastrarAluno(e) {
         return;
     }
 
-    // Envio real via Fetch POST para o backend PHP
+    
     fetch('api/alunos.php', {
         method: 'POST',
         headers: {
@@ -364,9 +339,7 @@ function limparFormulario() {
     dom.btnCadastrar.textContent = 'Adicionar Aluno';
 }
 
-// =====================================================================
-// UTILITÁRIOS E FEEDBACK
-// =====================================================================
+
 function setLoading(ativo) {
     appState.carregando = ativo;
     dom.loadingState.style.display = ativo ? 'block' : 'none';
@@ -389,7 +362,7 @@ function ativarModoDemonstrativo(mensagemOriginal) {
         </div>
     `;
 
-    // Processa os dados de demonstração
+    
     let dadosSimulados = JSON.parse(JSON.stringify(DADOS_DEMO));
     if (appState.abordagem === 2) {
         dadosSimulados = dadosSimulados.map(a => ({
