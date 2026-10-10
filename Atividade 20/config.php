@@ -1,23 +1,22 @@
 <?php
 /**
  * Conexão com o Banco de Dados MySQL via PDO
- * Roteiro de Atividades — Alunos, Notas e Status
  */
 
-// Configurações do banco de dados
+
 $db_host = 'localhost';
 $db_port = '3306';
 $db_name = 'escola_db';
 $db_user = 'root';
-$db_pass = ''; // Por padrão, no XAMPP/WAMP o root não tem senha
+$db_pass = ''; 
 
-// Headers comuns para APIs REST/JSON
+
 header('Content-Type: application/json; charset=UTF-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Responder imediatamente caso seja requisição pre-flight de CORS
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
