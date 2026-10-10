@@ -1,24 +1,15 @@
 <?php
 /**
- * Abordagem 2 (Final) — Regra de Negócio no Backend (PHP)
- * 
- * O backend é responsável por consultar os dados e APLICAR A REGRA DE NEGÓCIO:
- * - Aprovado: nota >= 7.0
- * - Reprovado: nota < 7.0
- * 
- * O JSON retornado já contém o atributo "status".
- * Também aceita requisições POST para cadastrar novos alunos.
+ * Abordagem 2 (Final) — Regra de Negócio no Backend 
  */
 
 require_once __DIR__ . '/config.php';
 
 $metodo = $_SERVER['REQUEST_METHOD'];
 
-// ============================================================================
-// CADASTRO DE NOVO ALUNO (POST)
-// ============================================================================
+
 if ($metodo === 'POST') {
-    // Ler os dados enviados via JSON ou FormData
+    
     $dados = json_decode(file_get_contents('php://input'), true);
     if (!$dados) {
         $dados = $_POST;
@@ -27,7 +18,7 @@ if ($metodo === 'POST') {
     $nome = isset($dados['nome']) ? trim($dados['nome']) : '';
     $nota = isset($dados['nota']) ? filter_var($dados['nota'], FILTER_VALIDATE_FLOAT) : false;
 
-    // Validação da regra de entrada no backend
+    
     if (empty($nome) || mb_strlen($nome) < 2) {
         http_response_code(400);
         echo json_encode([
@@ -55,7 +46,7 @@ if ($metodo === 'POST') {
 
         $novoId = (int) $pdo->lastInsertId();
 
-        // Regra de negócio aplicada imediatamente
+        
         $status = ($nota >= 7.0) ? 'Aprovado' : 'Reprovado';
 
         http_response_code(201);
@@ -81,12 +72,10 @@ if ($metodo === 'POST') {
     }
 }
 
-// ============================================================================
-// CONSULTA DE ALUNOS (GET)
-// ============================================================================
+
 if ($metodo === 'GET') {
     try {
-        // Verifica se foi solicitado forçar o modo sem status (para testes comparativos via query string)
+        
         $versao = isset($_GET['versao']) ? (int) $_GET['versao'] : 2;
 
         $stmt = $pdo->query('SELECT id, nome, nota FROM alunos ORDER BY id ASC');
@@ -100,9 +89,9 @@ if ($metodo === 'GET') {
                 'nota' => $nota
             ];
 
-            // Na Versão 2 (Padrão), a regra de negócio é calculada no PHP:
+            
             if ($versao !== 1) {
-                // REGRA DE NEGÓCIO: nota >= 7 ? Aprovado : Reprovado
+                
                 $item['status'] = ($nota >= 7.0) ? 'Aprovado' : 'Reprovado';
             }
 
@@ -121,6 +110,6 @@ if ($metodo === 'GET') {
     exit;
 }
 
-// Método não suportado
+
 http_response_code(405);
 echo json_encode(['erro' => true, 'mensagem' => 'Método não permitido.'], JSON_UNESCAPED_UNICODE);
