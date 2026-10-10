@@ -1,0 +1,8 @@
+**Onde a regra de negócio deve ficar: no frontend (JavaScript) ou no backend (PHP)? Por quê?**
+
+A regra de negócio deve obrigatoriamente residir no backend (PHP). Os principais motivos para essa escolha são:
+
+1. **Segurança e Integridade:** O código executado no frontend (JavaScript) roda inteiramente no navegador do cliente, o que significa que ele pode ser facilmente inspecionado, burlado ou manipulado pelo usuário. Colocar regras críticas (como critérios de aprovação, validações financeiras ou permissões) no backend garante que o processamento ocorra em um ambiente controlado e seguro.
+2. **Reutilização e Centralização:** Se a regra estivesse no JavaScript, qualquer outra aplicação que precisasse consumir esses mesmos dados (como um aplicativo mobile, uma versão em React ou uma integração com outro sistema) teria que reescrever a mesma lógica de validação. Centralizando no backend, qualquer cliente que consumir a API receberá os dados já processados de forma padronizada.
+3. **Manutenção:** Modificar a regra de negócio (por exemplo, se a média de aprovação mudar de 7 para 6) exigiria alterar o código em todos os clientes distribuídos caso estivesse no frontend. No backend, a alteração é feita em um único ponto, refletindo instantaneamente para todas as interfaces.
+4. **Responsabilidades:** O papel do frontend é exclusivamente a apresentação e experiência do usuário (UI/UX), enquanto o backend é responsável pelo processamento de dados e regras da aplicação.
